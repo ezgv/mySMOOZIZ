@@ -74,6 +74,7 @@ var CALORIES = {
   "avoine": 369, // 32140 Flocons d'avoine
   "gingembre": 33.3, // 11074 Gingembre, racine fraîche
   "miel": 331, // 31008 Miel
+  "agave": 317.5, // calculé (règlement UE 1169/2011) d'après Ciqual 31089 Sirop d'agave
   "lait-noisette": 50 // hors Ciqual : valeur indicative moyenne
 };
 if (typeof module !== 'undefined') module.exports = CALORIES;

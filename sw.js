@@ -1,9 +1,9 @@
 /* Fonctionnement hors connexion. En ligne, la dernière version publiée est toujours prise en priorité.
    Les noms de cache commencent par « mysmooziz- » : les autres applications hébergées
    sur la même adresse github.io ne sont jamais touchées. */
-var CACHE = 'mysmooziz-1.1';
+var CACHE = 'mysmooziz-1.2';
 var FILES = ['./', 'index.html', 'style.css', 'season.js', 'calories.js', 'data.js', 'engine.js', 'app.js', 'manifest.webmanifest',
-  'chewy.woff2', 'patrickhand.woff2', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+  'youngserif.woff2', 'josefin.woff2', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (cache) {

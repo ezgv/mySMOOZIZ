@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'mysmooziz:profil:v1';
-  var VERSION = 'version 1.1';
+  var VERSION = 'version 1.2';
   var PAGE = 30;
   var MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   var SWATCHES = ['#f87217', '#4de800', '#d61e33', '#3ddff3', '#6495ed', '#ffd62e', '#a77bd1', '#e9dcbc'];
@@ -353,17 +353,67 @@
     if (ui.pick.base !== 'auto' && !Engine.usable(ui.pick.base, profile)) ui.pick.base = 'auto';
   }
 
+  /* Familles de couleur : contour des blocs de « Composer ». */
+  var RED_FRUITS = ['cassis', 'cerise', 'fraise', 'framboise', 'groseille', 'mure', 'myrtille'];
+  var EXOTIC = ['ananas', 'banane', 'coco', 'datte', 'grenade', 'kaki', 'kiwi', 'litchi', 'mangue', 'passion', 'papaye'];
+  var GREENS = ['avocat', 'celeri', 'kale', 'concombre', 'courgette', 'epinard', 'fenouil', 'laitue'];
+  var FAMILIES = [['rouge', 'Fruits rouges'], ['exotique', 'Exotiques'], ['fruit', 'Autres'], ['vert', 'Verts'], ['legume', 'Autres légumes']];
+
+  function tint(i) {
+    if (has(GREENS, i.id)) return 'vert';
+    if (i.cat !== 'fruit') return i.cat;
+    if (i.citrus) return 'agrume';
+    return has(RED_FRUITS, i.id) ? 'rouge' : (has(EXOTIC, i.id) ? 'exotique' : 'fruit');
+  }
+
+  /* Légende des contours, seulement quand une rubrique mélange plusieurs familles. */
+  function colorKeys(list) {
+    var used = list.map(tint);
+    var keys = FAMILIES.filter(function (f) { return has(used, f[0]); });
+    if (keys.length < 2) return null;
+    return h('p', { class: 'keys' }, keys.map(function (f) { return h('span', { class: 'key tint-' + f[0] }, f[1]); }));
+  }
+
+  /* Blocs de « Composer » : chaque ligne est remplie, la largeur suit la longueur du nom.
+     Les coupures sont choisies pour équilibrer les lignes sans changer l'ordre. */
+  function fitChips() {
+    Array.prototype.forEach.call(document.querySelectorAll('.chips.fit'), function (box) {
+      Array.prototype.forEach.call(box.querySelectorAll('.brk'), function (b) { b.remove(); });
+      var items = Array.prototype.slice.call(box.children);
+      items.forEach(function (c) { c.style.flex = ''; });
+      var room = box.clientWidth - 1, gap = parseFloat(window.getComputedStyle(box).columnGap) || 0;
+      if (room <= 0 || !items.length) return;
+      items.forEach(function (c) { c.style.flex = '0 0 auto'; });
+      var widths = items.map(function (c) { return Math.min(room, Math.ceil(c.getBoundingClientRect().width)); });
+      var cost = [], next = [], n = items.length;
+      cost[n] = 0;
+      for (var i = n - 1; i >= 0; i--) {
+        var sum = -gap;
+        cost[i] = Infinity;
+        for (var j = i; j < n; j++) {
+          sum += gap + widths[j];
+          if (sum > room && j > i) break;
+          /* D'abord le moins de lignes possible, puis les lignes les plus régulières. */
+          var c = 1e9 + Math.pow(Math.max(0, room - sum), 2) + cost[j + 1];
+          if (c < cost[i]) { cost[i] = c; next[i] = j + 1; }
+        }
+      }
+      items.forEach(function (c, k) { c.style.flex = widths[k] + ' 1 ' + widths[k] + 'px'; });
+      for (var at = next[0]; at < n; at = next[at]) box.insertBefore(h('span', { class: 'brk', 'aria-hidden': 'true' }), items[at]);
+    });
+  }
+
   function chip(i, selected, full, onclick) {
     var st = Engine.status(i, profile);
-    var note = null, cls = 'chip';
-    if (!st.ok) { note = st.kind === 'allergy' ? st.reason : st.reason; cls += ' chip-' + st.kind; }
+    var note = null, cls = 'chip tint-' + tint(i);
+    if (!st.ok) { note = st.reason; cls += ' chip-' + st.kind; }
     else {
       var season = Engine.inSeason(i, MONTH, SEASONS);
       if (season === true) note = 'de saison';
       else if (season === false) note = i.frozen ? 'surgelé' : 'hors saison';
       if (season === true) cls += ' chip-season';
     }
-    return button([dot(i.color), h('span', {}, i.name, note ? h('small', {}, note) : null)], cls, onclick,
+    return button(h('span', {}, i.name, note ? h('small', {}, note) : null), cls, onclick,
       { 'aria-pressed': String(selected), disabled: !st.ok || (full && !selected), 'data-key': 'chip' + i.id });
   }
 
@@ -379,8 +429,9 @@
       }
       var chosen = ui.pick[key];
       var full = chosen.length >= Engine.LIMITS[key];
-      return h('section', {}, h('h2', {}, title), help ? h('p', { class: 'hint' }, help + ' ' + chosen.length + ' sur ' + Engine.LIMITS[key] + '.') : null,
-        h('div', { class: 'chips' }, list.map(function (i) {
+      return h('section', {}, h('h2', {}, title), help ? h('p', { class: 'hint' }, help) : null,
+        key === 'produce' ? colorKeys(list) : null,
+        h('div', { class: 'chips fit' }, list.map(function (i) {
           return chip(i, has(chosen, i.id), full, function () { toggle(chosen, i.id); render(); });
         })));
     }
@@ -392,16 +443,16 @@
     return h('div', {},
       h('h1', {}, 'Composer mon mélange'),
       segmented('Tri', [{ value: 'alpha', label: 'De A à Z' }, { value: 'season', label: 'Par saison' }], ui.composeSort, function (v) { ui.composeSort = v; render(); }),
-      h('p', { class: 'counter', role: 'status' }, 'Fruits, agrumes et légumes : ' + ui.pick.produce.length + ' sur ' + Engine.LIMITS.produce + ' (au moins 1).'),
+      h('p', { class: 'counter' }, 'Choisissez 1 à ' + Engine.LIMITS.produce + ' fruits ou légumes, une base complète le mélange.'),
       group('Fruits', function (i) { return i.cat === 'fruit' && !i.citrus; }, 'produce'),
       group('Agrumes', function (i) { return i.cat === 'fruit' && i.citrus; }, 'produce'),
       group('Légumes', cat('legume'), 'produce'),
-      group('Oléagineux et graines', cat('oleagineux'), 'nuts', 'Facultatif.'),
+      group('Oléagineux et graines', cat('oleagineux'), 'nuts', 'Facultatif, ' + Engine.LIMITS.nuts + ' maximum.'),
       h('section', {}, h('h2', {}, 'Lait ou base'),
-        h('div', { class: 'chips' },
-          button([dot('#3ddff3'), h('span', {}, 'L’appli choisit')], 'chip', function () { ui.pick.base = 'auto'; render(); }, { 'aria-pressed': String(ui.pick.base === 'auto'), 'data-key': 'auto' }),
+        h('div', { class: 'chips fit' },
+          button(h('span', {}, 'L’appli choisit'), 'chip tint-base', function () { ui.pick.base = 'auto'; render(); }, { 'aria-pressed': String(ui.pick.base === 'auto'), 'data-key': 'auto' }),
           bases.map(function (i) { return chip(i, ui.pick.base === i.id, false, function () { ui.pick.base = i.id; render(); }); }))),
-      group('Options', cat('option'), 'options', 'Facultatif.'),
+      group('Options', cat('option'), 'options', 'Facultatif, ' + Engine.LIMITS.options + ' maximum.'),
       h('div', { class: 'sticky compose-bar' },
         picked ? button('Tout désélectionner', 'btn-clear', function () { ui.pick = { produce: [], nuts: [], base: 'auto', options: [] }; render(); }, { 'data-key': 'clearpick' }) : null,
         button(!hasBase ? 'Aucune base disponible' : (ready ? 'Voir mon mélange' : 'Choisissez un fruit ou un légume'), 'btn btn-green btn-wide', function () {
@@ -489,14 +540,16 @@
         h('div', { class: 'chips' }, f.with.map(function (id) {
           return button([ing(id).name, h('span', { 'aria-hidden': 'true' }, ' ×')], 'achip picked-chip', function () { toggle(f.with, id); changed(); }, { 'aria-label': 'Ne plus filtrer sur ' + ing(id).name, 'data-key': 'drop' + id });
         }))) : null,
-      segmented('Filtre', [{ value: false, label: 'Toutes' }, { value: true, label: 'De saison en ' + MONTHS[MONTH] }], f.season, function (v) { f.season = v; changed(); }),
-      h('div', { class: 'checks' }, box('noMilk', 'Sans lait'), box('noPlant', 'Sans laits végétaux'), box('noNuts', 'Sans oléagineux')),
-      f.noMilk || f.noPlant || f.noNuts ? h('p', { class: 'hint' }, 'Ces cases ne remplacent pas vos réglages d’allergies.') : null,
-      h('p', { class: 'legend' }, 'Énergie pour 1 verre de 33 cl : de 1 ', bolts(1), ' (très peu calorique) à 4 ', bolts(1), ' (très calorique)'),
-      h('div', { class: 'efilter', role: 'group', 'aria-label': 'Filtrer par énergie' },
-        energyButton(1, 'Peu', 'Très peu calorique, un éclair'),
-        energyButton(2, 'Moyen', 'Moyennement calorique, deux éclairs'),
-        energyButton(3, 'Beaucoup', 'Calorique et très calorique, trois éclairs ou plus')),
+      segmented('Filtre', [{ value: false, label: 'Toutes' }, { value: true, label: 'De saison' }], f.season, function (v) { f.season = v; changed(); }),
+      h('div', { class: 'filters', role: 'group', 'aria-label': 'Filtres' },
+        h('div', { class: 'filter-checks' }, box('noMilk', 'Sans lait'), box('noPlant', 'Sans laits végétaux'), box('noNuts', 'Sans oléagineux')),
+        f.noMilk || f.noPlant || f.noNuts ? h('p', { class: 'hint' }, 'Ces cases ne remplacent pas vos réglages d’allergies.') : null,
+        h('p', { class: 'legend' }, h('span', {}, 'Énergie pour 1 verre de 33 cl :'),
+          h('span', { class: 'legend-scale' }, 'de 1 ', bolts(1), ' (très peu calorique) à 4 ', bolts(1), ' (très calorique)')),
+        h('div', { class: 'efilter', role: 'group', 'aria-label': 'Filtrer par énergie' },
+          energyButton(1, 'Peu', 'Très peu calorique, un éclair'),
+          energyButton(2, 'Moyen', 'Moyennement calorique, deux éclairs'),
+          energyButton(3, 'Beaucoup', 'Calorique et très calorique, trois éclairs ou plus'))),
       h('p', { class: 'hint', role: 'status' }, filtered.length + (filtered.length > 1 ? ' recettes' : ' recette') +
         (hidden ? '. ' + hidden + (hidden > 1 ? ' masquées' : ' masquée') + ' selon vos allergies, vos goûts ou vos ingrédients retirés.' : '.')),
       narrowed ? button('Effacer les filtres', 'link-btn', function () { f.with = []; f.query = ''; f.season = false; f.noMilk = false; f.noPlant = false; f.noNuts = false; f.energy = []; changed(); }, { 'data-key': 'reset' }) : null,
@@ -815,6 +868,7 @@
           h('li', {}, 'Calories : Anses. 2025. Table de composition nutritionnelle des aliments Ciqual 2025. ', link('https://doi.org/10.57745/RDMHWY', 'https://doi.org/10.57745/RDMHWY'), '.'),
           h('li', {}, 'Le total est indicatif, arrondi à la dizaine et calculé sur les quantités affichées (1 ml compté pour 1 g). Les pincées, feuilles et gouttes ne sont pas comptées. La valeur réelle varie selon la maturité des fruits et les marques.'),
           h('li', {}, 'Valeurs retenues : lait de vache demi-écrémé, fromage blanc à 2-3 % de matière grasse, boisson à la noix de coco (et non le lait de coco de cuisine), chocolat noir à 70 % de cacao, noix de cajou et pistaches grillées sans sel. Lait de noisette, absent de la table Ciqual : moyenne indicative de 50 kcal pour 100 ml (les étiquettes varient selon les marques, d’environ 29 à 69 kcal).'),
+          h('li', {}, 'Sirop d’agave : énergie non renseignée dans Ciqual, calculée à partir de ses glucides, protéines et lipides avec les coefficients du règlement (UE) n° 1169/2011, soit environ 318 kcal pour 100 g.'),
           h('li', {}, 'Catégories d’énergie, pour un verre de 33 cl : jusqu’à 120 kcal très peu calorique, jusqu’à 300 moyennement calorique, jusqu’à 500 calorique, au-delà très calorique (sur la valeur arrondie à la dizaine). Ce sont des repères propres à cette application.'),
           h('li', {}, 'Recettes : noms et dosages propres à mySMOOZIZ, recettes non goûtées. Les associations de fruits et légumes ont été relevées le 25/11/2026 sur des recettes publiées, notamment ', link('https://www.750g.com/recettes-boissons/smoothies/fruits/', '750g'), ', ', link('https://www.demotivateur.fr/food/recettes/categorie/smoothie', 'Demotivateur'), ' et ', link('https://www.vorwerk.com/fr/fr/c/vorwerk/astuces-recettes/blog/thermomix/recettes-quotidien/recette-de-smoothie', 'Vorwerk'), '. La liste complète est dans le fichier SOURCES.md.'),
           h('li', {}, 'Saisons : ADEME, ', link('https://github.com/incubateur-ademe/impactco2', 'projet Impact CO2'), ' (version de novembre 2026).'),
@@ -862,6 +916,7 @@
       chrome ? allergyBanner() : '',
       h('main', {}, content),
       chrome ? nav(r) : '');
+    fitChips();
     window.scrollTo(0, y);
     if (focus) {
       var el = app.querySelector('[data-key="' + focus + '"]');
@@ -885,6 +940,12 @@
   });
 
   render();
+
+  window.addEventListener('resize', fitChips);
+  if (document.fonts) {
+    document.fonts.ready.then(fitChips);
+    if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', fitChips);
+  }
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(function () { /* l'appli reste utilisable en ligne */ });

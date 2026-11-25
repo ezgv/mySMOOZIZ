@@ -128,6 +128,7 @@ var INGREDIENTS = [
   B('yaourt', 'Yaourt nature', '#fffdf5', { contains: ['lait'], family: 'lait', thick: true }),
   B('yaourt-soja', 'Yaourt au soja', '#f4edd2', { contains: ['soja'], family: 'soja', thick: true }),
 
+  O('agave', 'Sirop d’agave', '#e3a336', 7, 'g', { label: true }),
   O('basilic', 'Basilic frais', '#3fae4a', 4, 'feuille'),
   O('cacao', 'Cacao en poudre non sucré', '#6e3b22', 6, 'g', { contains: ['cacao'], family: 'cacao', traces: true, label: true }),
   O('cafe', 'Café refroidi', '#4a2c1d', 50, 'ml', { label: true }),
