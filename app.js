@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'mysmooziz:profil:v1';
-  var VERSION = 'version 1.0';
+  var VERSION = 'version 1.1';
   var PAGE = 30;
   var MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   var SWATCHES = ['#f87217', '#4de800', '#d61e33', '#3ddff3', '#6495ed', '#ffd62e', '#a77bd1', '#e9dcbc'];
@@ -15,7 +15,7 @@
   var ui = {
     pick: { produce: [], nuts: [], base: 'auto', options: [] },
     composeSort: 'alpha',
-    ideas: { with: [], query: '', season: false, noMilk: false, noNuts: false, shown: PAGE, scroll: null },
+    ideas: { with: [], query: '', season: false, noMilk: false, noPlant: false, noNuts: false, energy: [], shown: PAGE, scroll: null },
     ing: { sort: 'alpha', month: null, cat: 'fruit', citrus: false },
     form: null,
     recipe: null,
@@ -146,7 +146,7 @@
 
   var NAV = [
     { r: 'composer', label: 'Composer', icon: 'M5 4h14l-2 16H7L5 4zm1.5 6h11' },
-    { r: 'idees', label: 'Idées', icon: 'M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.5 10.9c.4.3.5.7.5 1.1h6c0-.4.1-.8.5-1.1A6 6 0 0 0 12 3z' },
+    { r: 'idees', label: 'Recettes', icon: 'M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.5 10.9c.4.3.5.7.5 1.1h6c0-.4.1-.8.5-1.1A6 6 0 0 0 12 3z' },
     { r: 'surprise', label: 'Surprise', icon: 'M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z' },
     { r: 'ingredients', label: 'Ingrédients', icon: 'M12 8c-5-3-9 1-7.5 6.5C6 20 9 22 12 20c3 2 6 0 7.5-5.5C21 9 17 5 12 8zm0 0c0-3 1.500-5 4-5.500' },
     { r: 'profil', label: 'Profil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9c1-5 4-6.500 8-6.500s7 1.500 8 6.500' }
@@ -322,6 +322,11 @@
       h('p', { class: 'hint' }, 'Proportions indicatives. Vous préparez pour quelqu’un d’autre ? Vos réglages ne couvrent que les allergies saisies sur ce téléphone.'));
   }
 
+  function backButton() {
+    return button([s('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, s('path', { d: 'M15 5l-7 7 7 7' })), h('span', {}, 'Retour')],
+      'back', function () { window.history.back(); }, { 'data-key': 'back' });
+  }
+
   /* ---------- accueil ---------- */
 
   function homeView() {
@@ -365,33 +370,40 @@
   function composeView() {
     purgePick();
     var all = Engine.everyIngredient(profile).filter(function (i) { return !has(profile.hidden, i.id); });
-    function group(title, cats, key, help) {
-      var list = all.filter(function (i) { return has(cats, i.cat); }).sort(byName);
+    function group(title, test, key, help) {
+      var list = all.filter(test).sort(byName);
+      if (!list.length) return null;
       if (ui.composeSort === 'season') {
         var rank = function (i) { var v = Engine.inSeason(i, MONTH, SEASONS); return v === true ? 0 : (v === false && i.frozen ? 1 : (v === null ? 2 : 3)); };
         list.sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); });
       }
       var chosen = ui.pick[key];
       var full = chosen.length >= Engine.LIMITS[key];
-      return h('section', {}, h('h2', {}, title), h('p', { class: 'hint' }, help + ' ' + chosen.length + ' sur ' + Engine.LIMITS[key] + '.'),
+      return h('section', {}, h('h2', {}, title), help ? h('p', { class: 'hint' }, help + ' ' + chosen.length + ' sur ' + Engine.LIMITS[key] + '.') : null,
         h('div', { class: 'chips' }, list.map(function (i) {
           return chip(i, has(chosen, i.id), full, function () { toggle(chosen, i.id); render(); });
         })));
     }
+    function cat(key) { return function (i) { return i.cat === key; }; }
+    var picked = ui.pick.produce.length + ui.pick.nuts.length + ui.pick.options.length + (ui.pick.base !== 'auto' ? 1 : 0);
     var bases = all.filter(function (i) { return i.cat === 'base'; }).sort(byName);
     var ready = ui.pick.produce.length > 0;
     var hasBase = Engine.baseChoices(ui.pick.produce, profile).length > 0;
     return h('div', {},
       h('h1', {}, 'Composer mon mélange'),
       segmented('Tri', [{ value: 'alpha', label: 'De A à Z' }, { value: 'season', label: 'Par saison' }], ui.composeSort, function (v) { ui.composeSort = v; render(); }),
-      group('Fruits et légumes', ['fruit', 'legume'], 'produce', 'Au moins 1.'),
-      group('Oléagineux et graines', ['oleagineux'], 'nuts', 'Facultatif.'),
+      h('p', { class: 'counter', role: 'status' }, 'Fruits, agrumes et légumes : ' + ui.pick.produce.length + ' sur ' + Engine.LIMITS.produce + ' (au moins 1).'),
+      group('Fruits', function (i) { return i.cat === 'fruit' && !i.citrus; }, 'produce'),
+      group('Agrumes', function (i) { return i.cat === 'fruit' && i.citrus; }, 'produce'),
+      group('Légumes', cat('legume'), 'produce'),
+      group('Oléagineux et graines', cat('oleagineux'), 'nuts', 'Facultatif.'),
       h('section', {}, h('h2', {}, 'Lait ou base'),
         h('div', { class: 'chips' },
           button([dot('#3ddff3'), h('span', {}, 'L’appli choisit')], 'chip', function () { ui.pick.base = 'auto'; render(); }, { 'aria-pressed': String(ui.pick.base === 'auto'), 'data-key': 'auto' }),
           bases.map(function (i) { return chip(i, ui.pick.base === i.id, false, function () { ui.pick.base = i.id; render(); }); }))),
-      group('Options', ['option'], 'options', 'Facultatif.'),
-      h('div', { class: 'sticky' },
+      group('Options', cat('option'), 'options', 'Facultatif.'),
+      h('div', { class: 'sticky compose-bar' },
+        picked ? button('Tout désélectionner', 'btn-clear', function () { ui.pick = { produce: [], nuts: [], base: 'auto', options: [] }; render(); }, { 'data-key': 'clearpick' }) : null,
         button(!hasBase ? 'Aucune base disponible' : (ready ? 'Voir mon mélange' : 'Choisissez un fruit ou un légume'), 'btn btn-green btn-wide', function () {
           var r = Engine.compose(ui.pick, profile.size, profile);
           if (!r) return;
@@ -433,18 +445,18 @@
     var list = Engine.ideas(profile);
     f.with = f.with.filter(function (id) { return Engine.usable(id, profile); });
     function changed() { f.shown = PAGE; render(); }
-    var filtered = Engine.filterRecipes(list, f, profile, MONTH, SEASONS);
+    var filtered = Engine.filterRecipes(list, f, profile, MONTH, SEASONS, table());
     var score = function (r) {
       return Engine.idsOf(r).filter(function (id) { return has(profile.likes, id); }).length * 2 +
         (Engine.recipeInSeason(r, MONTH, profile, SEASONS) ? 1 : 0);
     };
     filtered = filtered.slice().sort(function (a, b) { return score(b) - score(a) || byName(a, b); });
     var hidden = RECIPES.length - list.length;
-    var narrowed = f.with.length || f.season || f.noMilk || f.noNuts;
+    var narrowed = f.with.length || f.season || f.noMilk || f.noPlant || f.noNuts || f.energy.length;
 
     var found = h('div', { class: 'chips suggestions', 'aria-live': 'polite' });
     function fill() {
-      var matches = suggestions(Engine.filterRecipes(list, f, profile, MONTH, SEASONS));
+      var matches = suggestions(Engine.filterRecipes(list, f, profile, MONTH, SEASONS, table()));
       found.replaceChildren();
       append(found, matches.map(function (m) {
         return button([dot(m.ing.color), h('span', {}, m.ing.name, h('small', {}, m.count + (m.count > 1 ? ' recettes' : ' recette')))], 'chip', function () {
@@ -462,6 +474,11 @@
         h('span', {}, label));
     }
 
+    function energyButton(group, label, spoken) {
+      return button([bolts(group), h('span', {}, label)], 'ebtn', function () { toggle(f.energy, group); changed(); },
+        { 'aria-pressed': String(has(f.energy, group)), 'aria-label': spoken, 'data-key': 'energy' + group });
+    }
+
     return h('div', {},
       h('h1', {}, 'Des idées recettes'),
       h('label', { class: 'field' }, 'Chercher un ingrédient',
@@ -473,15 +490,16 @@
           return button([ing(id).name, h('span', { 'aria-hidden': 'true' }, ' ×')], 'achip picked-chip', function () { toggle(f.with, id); changed(); }, { 'aria-label': 'Ne plus filtrer sur ' + ing(id).name, 'data-key': 'drop' + id });
         }))) : null,
       segmented('Filtre', [{ value: false, label: 'Toutes' }, { value: true, label: 'De saison en ' + MONTHS[MONTH] }], f.season, function (v) { f.season = v; changed(); }),
-      h('div', { class: 'checks' }, box('noMilk', 'Sans lait'), box('noNuts', 'Sans oléagineux')),
-      f.noMilk || f.noNuts ? h('p', { class: 'hint' }, [
-        f.noMilk ? '« Sans lait » écarte les produits laitiers et le chocolat noir (traces possibles), mais garde les laits végétaux.' : '',
-        f.noNuts ? '« Sans oléagineux » écarte les fruits à coque, la cacahuète, la chia et les laits d’amande et de noisette, mais garde la noix de coco.' : '',
-        'Ces cases ne remplacent pas vos réglages d’allergies.'].filter(Boolean).join(' ')) : null,
+      h('div', { class: 'checks' }, box('noMilk', 'Sans lait'), box('noPlant', 'Sans laits végétaux'), box('noNuts', 'Sans oléagineux')),
+      f.noMilk || f.noPlant || f.noNuts ? h('p', { class: 'hint' }, 'Ces cases ne remplacent pas vos réglages d’allergies.') : null,
+      h('p', { class: 'legend' }, 'Énergie pour 1 verre de 33 cl : de 1 ', bolts(1), ' (très peu calorique) à 4 ', bolts(1), ' (très calorique)'),
+      h('div', { class: 'efilter', role: 'group', 'aria-label': 'Filtrer par énergie' },
+        energyButton(1, 'Peu', 'Très peu calorique, un éclair'),
+        energyButton(2, 'Moyen', 'Moyennement calorique, deux éclairs'),
+        energyButton(3, 'Beaucoup', 'Calorique et très calorique, trois éclairs ou plus')),
       h('p', { class: 'hint', role: 'status' }, filtered.length + (filtered.length > 1 ? ' recettes' : ' recette') +
         (hidden ? '. ' + hidden + (hidden > 1 ? ' masquées' : ' masquée') + ' selon vos allergies, vos goûts ou vos ingrédients retirés.' : '.')),
-      narrowed ? button('Effacer les filtres', 'link-btn', function () { f.with = []; f.query = ''; f.season = false; f.noMilk = false; f.noNuts = false; changed(); }, { 'data-key': 'reset' }) : null,
-      h('p', { class: 'hint legend' }, bolts(1), ' Les éclairs indiquent l’énergie d’un verre de 33 cl, de 1 (peu calorique) à 4 (très calorique).'),
+      narrowed ? button('Effacer les filtres', 'link-btn', function () { f.with = []; f.query = ''; f.season = false; f.noMilk = false; f.noPlant = false; f.noNuts = false; f.energy = []; changed(); }, { 'data-key': 'reset' }) : null,
       filtered.length ? h('ul', { class: 'cards' }, filtered.slice(0, f.shown).map(ideaCard)) :
         h('div', { class: 'empty' }, h('p', {}, 'Aucune recette ne réunit ces critères. Retirez un filtre ou composez votre mélange.'),
           button('Composer mon mélange', 'btn btn-green', function () { go('composer'); })),
@@ -797,7 +815,7 @@
           h('li', {}, 'Calories : Anses. 2025. Table de composition nutritionnelle des aliments Ciqual 2025. ', link('https://doi.org/10.57745/RDMHWY', 'https://doi.org/10.57745/RDMHWY'), '.'),
           h('li', {}, 'Le total est indicatif, arrondi à la dizaine et calculé sur les quantités affichées (1 ml compté pour 1 g). Les pincées, feuilles et gouttes ne sont pas comptées. La valeur réelle varie selon la maturité des fruits et les marques.'),
           h('li', {}, 'Valeurs retenues : lait de vache demi-écrémé, fromage blanc à 2-3 % de matière grasse, boisson à la noix de coco (et non le lait de coco de cuisine), chocolat noir à 70 % de cacao, noix de cajou et pistaches grillées sans sel. Lait de noisette, absent de la table Ciqual : moyenne indicative de 50 kcal pour 100 ml (les étiquettes varient selon les marques, d’environ 29 à 69 kcal).'),
-          h('li', {}, 'Catégories d’énergie, pour un verre de 33 cl : jusqu’à 120 kcal peu calorique, jusqu’à 300 moyennement calorique, jusqu’à 500 calorique, au-delà très calorique (sur la valeur arrondie à la dizaine). Ce sont des repères propres à cette application.'),
+          h('li', {}, 'Catégories d’énergie, pour un verre de 33 cl : jusqu’à 120 kcal très peu calorique, jusqu’à 300 moyennement calorique, jusqu’à 500 calorique, au-delà très calorique (sur la valeur arrondie à la dizaine). Ce sont des repères propres à cette application.'),
           h('li', {}, 'Recettes : noms et dosages propres à mySMOOZIZ, recettes non goûtées. Les associations de fruits et légumes ont été relevées le 25/11/2026 sur des recettes publiées, notamment ', link('https://www.750g.com/recettes-boissons/smoothies/fruits/', '750g'), ', ', link('https://www.demotivateur.fr/food/recettes/categorie/smoothie', 'Demotivateur'), ' et ', link('https://www.vorwerk.com/fr/fr/c/vorwerk/astuces-recettes/blog/thermomix/recettes-quotidien/recette-de-smoothie', 'Vorwerk'), '. La liste complète est dans le fichier SOURCES.md.'),
           h('li', {}, 'Saisons : ADEME, ', link('https://github.com/incubateur-ademe/impactco2', 'projet Impact CO2'), ' (version de novembre 2026).'),
           h('li', {}, 'Allergènes : ', link('https://www.efsa.europa.eu/luFR/safe2eat/food-allergens', 'EFSA, les 14 allergènes de l’UE'), '.'),
@@ -820,7 +838,7 @@
     ingredients: ingredientsView, ajouter: formView, profil: profileView,
     recette: function () {
       if (!ui.recipe) return ideasView();
-      return h('div', {}, button('Retour', 'link-btn back', function () { window.history.back(); }), recipeView(ui.recipe, false));
+      return h('div', {}, backButton(), recipeView(ui.recipe, false));
     }
   };
 

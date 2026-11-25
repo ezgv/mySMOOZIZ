@@ -1,4 +1,4 @@
-# mySMOOZIZ 1.0
+# mySMOOZIZ 1.1
 
 Application de recettes de smoothies qui tient compte des goûts et des allergies.
 Les réglages de chaque personne restent dans son navigateur.
@@ -7,7 +7,7 @@ Les réglages de chaque personne restent dans son navigateur.
 
 À faire de préférence depuis un ordinateur.
 
-1. Décompresser `mySMOOZIZ-1.0.zip`.
+1. Décompresser `mySMOOZIZ-1.1.zip`.
 2. Sur github.com, créer un dépôt public nommé `mysmooziz`.
 3. Dans le dépôt : « Add file », puis « Upload files ». Déposer tous les fichiers du dossier (pas le dossier lui-même, pas le zip). Valider avec « Commit changes ».
 4. Ouvrir « Settings », puis « Pages ». Dans « Build and deployment », choisir « Deploy from a branch », branche `main`, dossier `/ (root)`, puis « Save ».
@@ -15,7 +15,7 @@ Les réglages de chaque personne restent dans son navigateur.
 
 ## Mettre à jour
 
-Déposer les fichiers modifiés par-dessus les anciens. Les réglages enregistrés sur les téléphones sont conservés.
+Déposer les fichiers modifiés par-dessus les anciens. Depuis la version 1.1, `fredoka.woff2` et `nunito.woff2` ne servent plus et peuvent être supprimés. Les réglages enregistrés sur les téléphones sont conservés.
 
 ## Ajouter sur l'écran d'accueil
 

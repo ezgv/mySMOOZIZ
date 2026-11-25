@@ -336,9 +336,12 @@ var Engine = (function (D) {
     return D.RECIPES.filter(function (rc) { return allowed(rc, profile, ex); });
   }
 
-  /* Filtres de la page Idées. Ils trient l'affichage et ne remplacent pas les allergies. */
-  function hasMilk(sel, profile) {
-    return idsOf(sel).some(function (id) { return has(find(id, profile).contains || [], 'lait'); });
+  /* Filtres de la page des recettes. Ils trient l'affichage et ne remplacent pas les allergies. */
+  var DAIRY_BASES = ['lait-vache', 'yaourt', 'fromage-blanc'];
+  var PLANT_MILKS = ['lait-amande', 'lait-avoine', 'lait-coco', 'lait-noisette', 'lait-riz', 'lait-soja'];
+
+  function hasAny(sel, list) {
+    return idsOf(sel).some(function (id) { return has(list, id); });
   }
 
   function hasNuts(sel, profile) {
@@ -348,20 +351,27 @@ var Engine = (function (D) {
     });
   }
 
-  function filterRecipes(list, f, profile, month, seasons) {
+  /* f.energy : liste de groupes cochés (1, 2, ou 3 qui réunit les niveaux 3 et 4). */
+  function filterRecipes(list, f, profile, month, seasons, table) {
     return list.filter(function (rc) {
       var ids = idsOf(rc);
-      return f.with.every(function (id) { return has(ids, id); }) &&
-        !(f.noMilk && hasMilk(rc, profile)) &&
-        !(f.noNuts && hasNuts(rc, profile)) &&
-        !(f.season && !recipeInSeason(rc, month, profile, seasons));
+      if (!f.with.every(function (id) { return has(ids, id); })) return false;
+      if (f.noMilk && hasAny(rc, DAIRY_BASES)) return false;
+      if (f.noPlant && hasAny(rc, PLANT_MILKS)) return false;
+      if (f.noNuts && hasNuts(rc, profile)) return false;
+      if (f.season && !recipeInSeason(rc, month, profile, seasons)) return false;
+      if (f.energy && f.energy.length) {
+        var e = energy(rc, profile, table);
+        if (!e || !has(f.energy, Math.min(e.level, 3))) return false;
+      }
+      return true;
     });
   }
 
   /* ---------- énergie : toujours pour un verre de 33 cl ---------- */
 
   var ENERGY = [
-    { level: 1, max: 120, label: 'Peu calorique' },
+    { level: 1, max: 120, label: 'Très peu calorique' },
     { level: 2, max: 300, label: 'Moyennement calorique' },
     { level: 3, max: 500, label: 'Calorique' },
     { level: 4, max: Infinity, label: 'Très calorique' }
