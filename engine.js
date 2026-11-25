@@ -289,6 +289,8 @@ var Engine = (function (D) {
   var BASES_ACID = ['eau-coco', 'eau', 'yaourt-soja', 'yaourt', 'lait-riz', 'lait-amande'];
   var BASES_SOFT = ['lait-amande', 'lait-riz', 'lait-avoine', 'lait-soja', 'lait-vache', 'yaourt', 'lait-noisette', 'lait-coco', 'yaourt-soja', 'fromage-blanc', 'eau-coco', 'eau'];
 
+  var CURDLES = ['lait-vache', 'lait-soja'];
+
   function isAcid(produce, profile) {
     return produce.some(function (id) { var i = find(id, profile); return i && i.acid; });
   }
@@ -300,7 +302,11 @@ var Engine = (function (D) {
     var all = order.concat(BASES_SOFT.filter(function (b) { return !has(order, b); }), mine);
     var ok = all.filter(function (id) { return usable(id, profile, ex); });
     var liked = ok.filter(function (id) { return has(profile.likes, id); });
-    return liked.concat(ok.filter(function (id) { return !has(liked, id); }));
+    var sorted = liked.concat(ok.filter(function (id) { return !has(liked, id); }));
+    if (!isAcid(produce, profile)) return sorted;
+    /* Avec un fruit acide, les laits qui peuvent cailler passent en dernier. */
+    var curdles = function (id) { return has(CURDLES, id); };
+    return sorted.filter(function (id) { return !curdles(id); }).concat(sorted.filter(curdles));
   }
 
   function compose(sel, size, profile) {
@@ -330,7 +336,64 @@ var Engine = (function (D) {
     return D.RECIPES.filter(function (rc) { return allowed(rc, profile, ex); });
   }
 
+  /* Filtres de la page Idées. Ils trient l'affichage et ne remplacent pas les allergies. */
+  function hasMilk(sel, profile) {
+    return idsOf(sel).some(function (id) { return has(find(id, profile).contains || [], 'lait'); });
+  }
+
+  function hasNuts(sel, profile) {
+    return idsOf(sel).some(function (id) {
+      var i = find(id, profile);
+      return i.cat === 'oleagineux' || (i.contains || []).some(function (k) { return k === 'arachide' || has(D.NUT_KEYS, k); });
+    });
+  }
+
+  function filterRecipes(list, f, profile, month, seasons) {
+    return list.filter(function (rc) {
+      var ids = idsOf(rc);
+      return f.with.every(function (id) { return has(ids, id); }) &&
+        !(f.noMilk && hasMilk(rc, profile)) &&
+        !(f.noNuts && hasNuts(rc, profile)) &&
+        !(f.season && !recipeInSeason(rc, month, profile, seasons));
+    });
+  }
+
+  /* ---------- énergie : toujours pour un verre de 33 cl ---------- */
+
+  var ENERGY = [
+    { level: 1, max: 120, label: 'Peu calorique' },
+    { level: 2, max: 300, label: 'Moyennement calorique' },
+    { level: 3, max: 500, label: 'Calorique' },
+    { level: 4, max: Infinity, label: 'Très calorique' }
+  ];
+
+  /* Classement sur la valeur arrondie à la dizaine, la même que celle affichée. */
+  function energyOf(kcal) {
+    var shown = Math.round(kcal / 10) * 10;
+    return ENERGY.filter(function (e) { return shown <= e.max; })[0];
+  }
+
+  function energy(sel, profile, table) {
+    var c = calories(build(sel, 330, profile, ''), profile, table);
+    return c.kcal === null ? null : Object.assign({ kcal: c.kcal }, energyOf(c.kcal));
+  }
+
   /* ---------- surprise ---------- */
+
+  var CHOCO_OPTIONS = ['cacao', 'chocolat', 'cafe'];
+  var WATERY = ['pasteque', 'melon'];
+  var FRESH_BASES = ['eau', 'eau-coco', 'yaourt', 'yaourt-soja'];
+
+  /* Un fruit ou légume peut rejoindre le mélange si chaque duo a été relevé dans une recette,
+     avec un seul ingrédient original et un seul légume au plus. Les citrons restent à part. */
+  function canJoin(id, produce) {
+    var i = builtin[id];
+    if (!i || !/fruit|legume/.test(i.cat) || has(produce, id) || id === 'citron' || id === 'citron-vert') return false;
+    if (!produce.every(function (p) { return has(D.DUOS[id] || [], p); })) return false;
+    var original = function (x) { return !has(D.COMMONS, x); };
+    if (original(id) && produce.some(original)) return false;
+    return !(i.cat === 'legume' && produce.some(function (p) { return builtin[p].cat === 'legume'; }));
+  }
 
   var PREFIXES = ['Tornade', 'Comète', 'Pépite', 'Étincelle', 'Vague', 'Fanfare', 'Éclipse', 'Boussole', 'Pirouette', 'Escapade'];
 
@@ -371,36 +434,36 @@ var Engine = (function (D) {
     D.RECIPES.forEach(function (rc) { known[keyOf(rc)] = true; });
 
     var best = null;
-    for (var attempt = 0; attempt < 40; attempt++) {
+    for (var attempt = 0; attempt < 60; attempt++) {
       var main = pickWeighted(mains.map(function (i) { return i.id; }), weight, rand);
-      var friends = partners(main).filter(ok);
-      var pool = friends.filter(function (id) { return /fruit|legume/.test(builtin[id].cat) && id !== main; });
-      if (!pool.length) pool = mains.map(function (i) { return i.id; }).filter(function (id) { return id !== main; });
       var produce = [main];
       var wanted = rand() < 0.5 ? 2 : 3;
-      while (produce.length < wanted && pool.length) {
-        var next = pickWeighted(pool, weight, rand);
-        pool = pool.filter(function (id) {
-          return id !== next && !(builtin[next].cat === 'legume' && builtin[id].cat === 'legume');
-        });
-        produce.push(next);
+      while (produce.length < wanted) {
+        var pool = (D.DUOS[main] || []).filter(function (id) { return ok(id) && canJoin(id, produce); });
+        if (!pool.length) break;
+        produce.push(pickWeighted(pool, weight, rand));
       }
-      var twists = [];
-      produce.forEach(function (p) {
-        partners(p).forEach(function (id) { if (ok(id) && builtin[id].cat === 'option') add(twists, id); });
+      var choco = produce.every(function (p) { return has(D.CHOCO_FRUITS, p); });
+      var twists = partners(main).filter(function (id) {
+        return ok(id) && builtin[id].cat === 'option' && (choco || !has(CHOCO_OPTIONS, id));
       });
-      if (!twists.length) twists = ['menthe', 'gingembre'].filter(ok);
       var options = twists.length ? [twists[Math.floor(rand() * twists.length)]] : [];
       var nutPool = partners(main).filter(function (id) { return ok(id) && builtin[id].cat === 'oleagineux'; });
       var nuts = nutPool.length && rand() < 0.4 ? [nutPool[Math.floor(rand() * nutPool.length)]] : [];
       var bases = baseChoices(produce, profile);
-      if (!bases.length) return null;
+      if (isAcid(produce, profile)) bases = bases.filter(function (id) { return !has(CURDLES, id); });
+      /* Fruits très aqueux et légumes : bases fraîches. */
+      if (produce.some(function (p) { return builtin[p].cat === 'legume' || has(WATERY, p); })) {
+        bases = bases.filter(function (id) { return has(FRESH_BASES, id); });
+      }
+      if (!bases.length) continue;
       var base = bases[Math.floor(rand() * Math.min(4, bases.length))];
       var sel = { produce: produce, nuts: nuts, base: base, options: options };
       var key = keyOf(sel);
-      best = sel;
-      if (!known[key] && key !== previous) break;
+      if (!best || sel.produce.length >= best.produce.length) best = sel;
+      if (produce.length > 1 && !known[key] && key !== previous) { best = sel; break; }
     }
+    if (!best) return null;
     var words = best.produce.slice(0, 2).map(function (id) { return shortName(builtin[id]); });
     var title = PREFIXES[Math.floor(rand() * PREFIXES.length)] + ' ' + words.join('-');
     var recipe = build(best, profile.size, profile, title);
@@ -415,11 +478,11 @@ var Engine = (function (D) {
     allergyReason: allergyReason, status: status, usable: usable, idsOf: idsOf, allowed: allowed,
     assertSafe: assertSafe, build: build, compose: compose, formatQty: formatQty, calories: calories, parseKcal: parseKcal,
     baseChoices: baseChoices, isAcid: isAcid, inSeason: inSeason, recipeInSeason: recipeInSeason,
-    ideas: ideas, surprise: surprise, normalize: normalize
+    ideas: ideas, filterRecipes: filterRecipes, energy: energy, energyOf: energyOf, ENERGY: ENERGY, surprise: surprise, normalize: normalize
   };
 })(typeof module !== 'undefined' ? require('./data.js') : {
   NUT_KEYS: NUT_KEYS, ALLERGENS: ALLERGENS, LINKED: LINKED, CATEGORIES: CATEGORIES,
-  INGREDIENTS: INGREDIENTS, RECIPES: RECIPES, PAIRS: PAIRS, KEYWORDS: KEYWORDS
+  INGREDIENTS: INGREDIENTS, RECIPES: RECIPES, PAIRS: PAIRS, DUOS: DUOS, COMMONS: COMMONS, CHOCO_FRUITS: CHOCO_FRUITS, KEYWORDS: KEYWORDS
 });
 
 if (typeof module !== 'undefined') module.exports = Engine;

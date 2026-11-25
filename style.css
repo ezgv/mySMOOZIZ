@@ -72,10 +72,9 @@ small.c-green { color: var(--green); }
 .home h1 { font-size: 2.3rem; }
 .door { display: flex; flex-direction: column; justify-content: center; width: 100%; text-align: left; border: 0; color: var(--ink); padding: 1.1rem 1.4rem; margin: 0 0 .8rem; min-height: 6.2rem; border-radius: 1.6rem; font-weight: 600; }
 .big-title { font-size: 1.65rem; font-weight: 700; line-height: 1.15; }
-.door-surprise { background: var(--orange); min-height: 10rem; border-radius: 3.5rem 1.6rem 3.5rem 1.6rem; }
-.door-surprise .big-title { font-size: 2.4rem; }
 .door-compose { background: var(--green); border-radius: 1.6rem 3rem 1.6rem 1.6rem; }
 .door-ideas { background: var(--cyan); border-radius: 1.6rem 1.6rem 1.6rem 3rem; }
+.door-surprise { background: var(--orange); border-radius: 3rem 1.6rem 1.6rem 1.6rem; }
 .season-strip ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
 .season-strip li { display: flex; align-items: center; gap: .4rem; }
 
@@ -134,6 +133,18 @@ small.c-green { color: var(--green); }
 .card strong { font-family: var(--display); font-weight: 600; font-size: 1.15rem; }
 .card > span > span { font-size: .88rem; color: var(--muted); }
 
+/* énergie et filtres */
+.energy { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.card > span > span.energy { font-size: .8rem; color: #ffd62e; margin-top: .15rem; }
+.energy-line { display: flex; justify-content: center; margin: 0; color: #ffd62e; font-weight: 700; text-align: center; }
+.energy-line .energy { justify-content: center; }
+.energy-line small { flex-basis: 100%; font-weight: 400; }
+.bolts { display: inline-flex; flex: none; }
+.bolt { width: 1rem; height: 1rem; fill: #ffd62e; }
+.legend .bolts { vertical-align: -.15rem; }
+.suggestions:not(:empty) { margin-bottom: .6rem; }
+.picked-chip { border-color: var(--green); background: #2c4a21; }
+
 /* ingrédients */
 .cat-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0; }
 .cat { background: none; border: 2px solid var(--line); border-radius: 99px; padding: .35rem .8rem; }
@@ -186,9 +197,6 @@ legend { font-weight: 700; padding: 0; }
 .tab { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: .15rem; text-decoration: none; color: var(--muted); font-size: .72rem; min-width: 0; }
 .tab svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .tab[aria-current=page] { color: var(--cyan); font-weight: 800; }
-.tab-big svg { width: 3.5rem; height: 3.5rem; padding: .7rem; margin-top: -1.7rem; border-radius: 50%; background: var(--orange); color: var(--ink); border: .3rem solid var(--bg); fill: var(--ink); }
-.tab-big[aria-current=page] { color: var(--orange); }
-.tab-big[aria-current=page] svg { color: var(--ink); }
 
 @media (max-width: 22rem) { .logo { font-size: 1.8rem; } .recipe-body { grid-template-columns: 5.5rem 1fr; gap: .6rem; } }
 @media (prefers-reduced-motion: reduce) { .pour { animation: none; } }

@@ -1,0 +1,56 @@
+# Associations de saveurs : pages consultées
+
+Consultation du 25/11/2026 (page lue, ou extrait affiché par le moteur de recherche). Seuls les noms de fruits et de légumes réunis dans une même recette ont été relevés ; aucun texte, dosage ni nom de recette n’a été repris. Les dates de publication des pages n’ont pas été relevées.
+
+- https://cookidoo.co.uk/recipes/recipe/en-GB/r118861
+- https://cookidoo.com.au/recipes/recipe/en-AU/r118859
+- https://cookidoo.com.au/recipes/recipe/en-AU/r118861
+- https://cookidoo.com.au/recipes/recipe/en-AU/r118863
+- https://cookidoo.thermomix.com/recipes/recipe/en-US/r84743
+- https://ileauxepices.com/blog/2013/01/07/recette-du-smoothie-aux-letchis-et-bananes-epice/wpid712/
+- https://sweetlycakes.com/smoothie-myrtilles
+- https://www.750g.com/recettes-boissons/smoothies/?page=13
+- https://www.750g.com/recettes-boissons/smoothies/?page=15
+- https://www.750g.com/recettes-boissons/smoothies/?page=17
+- https://www.750g.com/recettes-boissons/smoothies/?page=18
+- https://www.750g.com/recettes-boissons/smoothies/fruits/
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=13
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=15
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=16
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=2
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=4
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=8
+- https://www.750g.com/recettes-boissons/smoothies/fruits/?page=9
+- https://www.aroma-zone.com/info/recette-culinaire/smoothie-dalgue-chlorelle
+- https://www.aroma-zone.com/page/smoothies-vitamines-des-recettes-sante-pour-se-rafraichir
+- https://www.consoglobe.com/?p=10345526
+- https://www.croq-kilos.com/actus/10-recettes-avec-des-fruits-de-decembre
+- https://www.croq-kilos.com/actus/10-recettes-de-smoothies-dete-frais-fruites-et-faciles-a-preparer
+- https://www.croq-kilos.com/actus/comment-faire-des-smoothies-energetiques-avec-des-fruits-d-automne
+- https://www.darty.com/darty-et-vous/beaute-bien-etre/salon-de-beaute/les-jus-qui-donnent-une-bonne-mine
+- https://www.demotivateur.fr/food/15-recettes-de-smoothie-d-automne-pour-faire-le-plein-d-energie-31717
+- https://www.demotivateur.fr/food/15-recettes-de-smoothies-gourmands-35880
+- https://www.demotivateur.fr/food/pomme-poire-et-gingembre-recette-de-smoothie-bowl-facile-et-rapide-pour-faire-le-plein-de-vitamines-en-hiver-46676
+- https://www.demotivateur.fr/food/recette/smoothie-a-la-mangue-1535
+- https://www.demotivateur.fr/food/recette/smoothie-aux-mures-1294
+- https://www.demotivateur.fr/food/recettes/categorie/smoothie
+- https://www.demotivateur.fr/food/smoothie-a-la-mangue-banane-et-framboise-50136
+- https://www.fitnesspark.fr/actualites/nutrition/recettes/recette-smoothie
+- https://www.kitchenaid.fr/blog/recettes-de-smoothies
+- https://www.ligue-cancer.net/sites/default/files/media/downloadable-files/2023-08/Recettes%20smoothies.pdf
+- https://www.nordictrack.com/fr/blog/smoothies-et-sport-nos-idees-de-recettes-suivant-vos-objectifs
+- https://www.vitamix.com/ca/fr_ca/recipes/fruit-salad-smoothie-r00727
+- https://www.vitamix.com/ca/fr_ca/recipes/holiday-fruit-smoothie-r00806
+- https://www.vitamix.com/ca/fr_ca/recipes/lychee-mango-smoothie-r000004802
+- https://www.vitamix.com/ca/fr_ca/recipes/mango-banana-delight-r000004514
+- https://www.vitamix.com/ca/fr_ca/recipes/peach-blueberry-smoothie-r02956
+- https://www.vitamix.com/ca/fr_ca/recipes/pear-spinach-lime-smoothie-r03328
+- https://www.vitamix.com/ca/fr_ca/recipes/pomegranate-orange-smoothie-r000004168
+- https://www.vitamix.com/ca/fr_ca/recipes/pomegranate-orange-smoothie-r03090
+- https://www.vorwerk.com/fr/fr/c/vorwerk/astuces-recettes/blog/thermomix/recettes-quotidien/recette-de-smoothie
+- https://www.weightwatchers.com/ca/fr/blog/10-idees-juteuses-souhait
+- https://www.zwilling.com/fr/magazine/recettes/recettes-appareils-de-cuisine/mini-blender/breakfast-shot.html
+- https://www.zwilling.com/fr/magazine/recettes/recettes-appareils-de-cuisine/power-blender/berry-and-orange-smoothie.html
+- https://www.zwilling.com/fr/magazine/recettes/recettes-appareils-de-cuisine/power-blender/tropical-smoothie.html
+- vitamix.com/ca/fr_ca, recette r00700 (grenade et betterave)
+- vitamix.com/ca/fr_ca, recette r01707 (pomegranate boost)

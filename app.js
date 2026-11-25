@@ -3,19 +3,20 @@
   'use strict';
 
   var KEY = 'mysmooziz:profil:v1';
-  var VERSION = 'bêta 0.3';
+  var VERSION = 'version 1.0';
+  var PAGE = 30;
   var MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   var SWATCHES = ['#f87217', '#4de800', '#d61e33', '#3ddff3', '#6495ed', '#ffd62e', '#a77bd1', '#e9dcbc'];
-  var now = new Date();
-  var MONTH = now.getMonth();
+  /* Mois du téléphone, relu à chaque affichage. */
+  var MONTH = new Date().getMonth();
 
   var storageNote = null;
   var profile = load();
   var ui = {
     pick: { produce: [], nuts: [], base: 'auto', options: [] },
     composeSort: 'alpha',
-    ideaFilter: 'all',
-    ing: { sort: 'alpha', month: MONTH, cat: 'fruit', citrus: false },
+    ideas: { with: [], query: '', season: false, noMilk: false, noNuts: false, shown: PAGE, scroll: null },
+    ing: { sort: 'alpha', month: null, cat: 'fruit', citrus: false },
     form: null,
     recipe: null,
     surprise: null,
@@ -146,15 +147,15 @@
   var NAV = [
     { r: 'composer', label: 'Composer', icon: 'M5 4h14l-2 16H7L5 4zm1.5 6h11' },
     { r: 'idees', label: 'Idées', icon: 'M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.5 10.9c.4.3.5.7.5 1.1h6c0-.4.1-.8.5-1.1A6 6 0 0 0 12 3z' },
-    { r: 'surprise', label: 'Surprise', big: true, icon: 'M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z' },
+    { r: 'surprise', label: 'Surprise', icon: 'M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z' },
     { r: 'ingredients', label: 'Ingrédients', icon: 'M12 8c-5-3-9 1-7.5 6.5C6 20 9 22 12 20c3 2 6 0 7.5-5.5C21 9 17 5 12 8zm0 0c0-3 1.500-5 4-5.500' },
     { r: 'profil', label: 'Profil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9c1-5 4-6.500 8-6.500s7 1.500 8 6.500' }
   ];
 
   function nav(current) {
     return h('nav', { class: 'tabs', 'aria-label': 'Menu principal' }, NAV.map(function (n) {
-      return h('a', { href: '#/' + n.r, class: 'tab' + (n.big ? ' tab-big' : ''), 'aria-current': current === n.r ? 'page' : null,
-        onclick: n.big ? function (e) { e.preventDefault(); surpriseMe(); } : null },
+      return h('a', { href: '#/' + n.r, class: 'tab', 'aria-current': current === n.r ? 'page' : null,
+        onclick: n.r === 'surprise' ? function (e) { e.preventDefault(); surpriseMe(); } : null },
         s('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, s('path', { d: n.icon })),
         h('span', {}, n.label));
     }));
@@ -215,10 +216,16 @@
   }
 
   function details(key, summary) {
-    var el = h('details', { open: ui.open[key] ? true : null }, h('summary', {}, summary),
+    var el = h('details', { open: ui.open[key] ? true : null }, h('summary', { 'data-key': 'sum' + key }, summary),
       Array.prototype.slice.call(arguments, 2));
     el.addEventListener('toggle', function () { ui.open[key] = el.open; });
     return el;
+  }
+
+  /* Section repliée tant que rien n'y est coché ; ouverte d'office sinon. */
+  function detailsOpenIf(count, key, summary, content) {
+    if (ui.open[key] === undefined && count) ui.open[key] = true;
+    return details(key, summary + (count ? ' (' + count + ' coché' + (count > 1 ? 's' : '') + ')' : ''), content);
   }
 
   function link(url, label) { return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, label); }
@@ -241,7 +248,7 @@
     if (items.some(function (i) { return i.berry && i.frozen; })) out.push({ text: 'Fruits rouges surgelés : la congélation n’élimine pas les virus. Pour une personne fragile, faites-les cuire avant de les mixer.' });
     if (has(ids, 'miel')) out.push({ text: 'Miel : jamais pour un enfant de moins d’un an.' });
     if (has(ids, 'bresil')) out.push({ text: 'Noix du Brésil : très riches en sélénium, ne dépassez pas la quantité indiquée.' });
-    if (has(ids, 'lait-vache') && Engine.isAcid(recipe.sel.produce, profile)) out.push({ text: 'Fruits acides et lait de vache : le mélange peut cailler. Buvez-le aussitôt ou changez de base.' });
+    if ((has(ids, 'lait-vache') || has(ids, 'lait-soja')) && Engine.isAcid(recipe.sel.produce.concat(recipe.sel.options), profile)) out.push({ text: 'Fruits acides avec du lait de vache ou de soja : le mélange peut cailler. Buvez-le aussitôt ou changez de base.' });
     return out;
   }
 
@@ -257,7 +264,7 @@
   }
 
   function calorieLine(recipe, detail) {
-    var c = Engine.calories(recipe, profile, typeof CALORIES === 'undefined' ? {} : CALORIES);
+    var c = Engine.calories(recipe, profile, table());
     if (c.kcal === null) {
       return h('p', { class: 'kcal kcal-missing', 'aria-live': 'polite' },
         'Calories non calculées : pas de valeur pour ' + c.missing.join(', ').toLowerCase() + '.');
@@ -265,6 +272,24 @@
     var n = Math.round(c.kcal / 10) * 10;
     return h('p', { class: 'kcal', 'aria-live': 'polite' },
       h('span', { class: 'kcal-value' }, 'Environ ' + n.toLocaleString('fr-FR') + ' kcal'), ' pour ' + detail);
+  }
+
+  function table() { return typeof CALORIES === 'undefined' ? {} : CALORIES; }
+
+  var BOLT = 'M13 2L4 14h6l-1 8 9-12h-6l1-8z';
+
+  function bolts(level) {
+    var list = [];
+    for (var i = 0; i < level; i++) list.push(s('svg', { viewBox: '0 0 24 24', class: 'bolt', 'aria-hidden': 'true', focusable: 'false' }, s('path', { d: BOLT })));
+    return h('span', { class: 'bolts' }, list);
+  }
+
+  /* note : précision affichée sous la catégorie quand le format choisi n'est pas 33 cl. */
+  function energyBadge(sel, note) {
+    var e = Engine.energy(sel, profile, table());
+    if (!e) return null;
+    return h('span', { class: 'energy', 'data-level': e.level }, bolts(e.level), h('span', {}, e.label),
+      note ? h('small', {}, note) : null);
   }
 
   function recipeView(recipe, animate) {
@@ -280,6 +305,7 @@
       h('h1', {}, recipe.name),
       sizePicker(),
       calorieLine(recipe, volume.detail),
+      h('p', { class: 'energy-line' }, energyBadge(recipe.sel, recipe.size === 330 ? null : 'Catégorie établie pour un verre de 33 cl')),
       h('div', { class: 'recipe-body' },
         glass(recipe, 'glass-' + recipe.size, animate),
         h('ul', { class: 'quantities', 'aria-label': 'Ingrédients pour ' + volume.detail }, recipe.items.map(function (item) {
@@ -305,9 +331,9 @@
     }).sort(byName);
     return h('div', { class: 'home' },
       h('h1', {}, 'On mixe quoi aujourd’hui ?'),
-      button([h('span', { class: 'big-title' }, 'Surprends-moi !'), h('span', {}, 'Une idée inattendue, rien que pour vous')], 'door door-surprise', surpriseMe),
       button([h('span', { class: 'big-title' }, 'Composer mon mélange'), h('span', {}, 'Je choisis, l’appli dose')], 'door door-compose', function () { go('composer'); }),
       button([h('span', { class: 'big-title' }, 'Des idées recettes'), h('span', {}, 'Prêtes à mixer')], 'door door-ideas', function () { go('idees'); }),
+      button([h('span', { class: 'big-title' }, 'Surprends-moi !'), h('span', {}, 'Une idée inattendue, rien que pour vous')], 'door door-surprise', surpriseMe),
       inSeason.length ? h('section', { class: 'season-strip' },
         h('h2', {}, 'De saison en ' + MONTHS[MONTH]),
         h('ul', {}, inSeason.map(function (i) { return h('li', {}, dot(i.color), i.name); }))) : null);
@@ -377,32 +403,89 @@
 
   /* ---------- idées ---------- */
 
+  function shortList(sel) {
+    return Engine.idsOf(sel).map(function (id) { return ing(id).name.replace(/ \(.*\)/, '').toLowerCase(); });
+  }
+
+  function ideaCard(r) {
+    var liked = Engine.idsOf(r).some(function (id) { return has(profile.likes, id); });
+    var built = Engine.build(r, profile.size, profile, r.name);
+    return h('li', {}, button([glass(built, 'glass-mini'),
+      h('span', {}, h('strong', {}, r.name), h('span', {}, shortList(r).join(', ')),
+        energyBadge(r),
+        liked ? h('small', { class: 'c-orange' }, 'avec ce que vous aimez') : (Engine.recipeInSeason(r, MONTH, profile, SEASONS) ? h('small', { class: 'c-green' }, 'de saison') : null))],
+      'card', function () { ui.ideas.scroll = window.scrollY; ui.recipe = built; go('recette'); }, { 'data-key': 'r' + r.name }));
+  }
+
+  /* Ingrédients présents dans les recettes compatibles et pas encore choisis. */
+  function suggestions(list) {
+    var q = Engine.normalize(ui.ideas.query);
+    if (!q) return [];
+    var count = {};
+    list.forEach(function (r) { Engine.idsOf(r).forEach(function (id) { count[id] = (count[id] || 0) + 1; }); });
+    return Object.keys(count).map(ing).filter(function (i) {
+      return !has(ui.ideas.with, i.id) && (' ' + Engine.normalize(i.name)).indexOf(' ' + q) !== -1;
+    }).sort(byName).slice(0, 8).map(function (i) { return { ing: i, count: count[i.id] }; });
+  }
+
   function ideasView() {
+    var f = ui.ideas;
     var list = Engine.ideas(profile);
-    var total = RECIPES.length;
-    var shown = ui.ideaFilter === 'season' ? list.filter(function (r) { return Engine.recipeInSeason(r, MONTH, profile, SEASONS); }) : list;
+    f.with = f.with.filter(function (id) { return Engine.usable(id, profile); });
+    function changed() { f.shown = PAGE; render(); }
+    var filtered = Engine.filterRecipes(list, f, profile, MONTH, SEASONS);
     var score = function (r) {
       return Engine.idsOf(r).filter(function (id) { return has(profile.likes, id); }).length * 2 +
         (Engine.recipeInSeason(r, MONTH, profile, SEASONS) ? 1 : 0);
     };
-    shown = shown.slice().sort(function (a, b) { return score(b) - score(a) || byName(a, b); });
-    var hidden = total - list.length;
+    filtered = filtered.slice().sort(function (a, b) { return score(b) - score(a) || byName(a, b); });
+    var hidden = RECIPES.length - list.length;
+    var narrowed = f.with.length || f.season || f.noMilk || f.noNuts;
+
+    var found = h('div', { class: 'chips suggestions', 'aria-live': 'polite' });
+    function fill() {
+      var matches = suggestions(Engine.filterRecipes(list, f, profile, MONTH, SEASONS));
+      found.replaceChildren();
+      append(found, matches.map(function (m) {
+        return button([dot(m.ing.color), h('span', {}, m.ing.name, h('small', {}, m.count + (m.count > 1 ? ' recettes' : ' recette')))], 'chip', function () {
+          f.with.push(m.ing.id); f.query = ''; changed();
+          var field = document.querySelector('[data-key="search"]');
+          if (field) field.focus({ preventScroll: true });
+        }, { 'data-key': 'add' + m.ing.id });
+      }));
+      if (f.query.trim() && !matches.length) found.appendChild(h('p', { class: 'hint' }, 'Aucun ingrédient de ce nom dans les recettes affichées.'));
+    }
+    fill();
+
+    function box(key, label) {
+      return h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: f[key], 'data-key': key, onchange: function (e) { f[key] = e.target.checked; changed(); } }),
+        h('span', {}, label));
+    }
+
     return h('div', {},
       h('h1', {}, 'Des idées recettes'),
-      sizePicker(),
-      segmented('Filtre', [{ value: 'all', label: 'Toutes' }, { value: 'season', label: 'De saison en ' + MONTHS[MONTH] }], ui.ideaFilter, function (v) { ui.ideaFilter = v; render(); }),
-      h('p', { class: 'hint', role: 'status' }, shown.length + (shown.length > 1 ? ' recettes' : ' recette') +
+      h('label', { class: 'field' }, 'Chercher un ingrédient',
+        h('input', { type: 'search', maxlength: 40, value: f.query, placeholder: 'Ananas, poire, cacao…', autocomplete: 'off', 'data-key': 'search',
+          oninput: function (e) { f.query = e.target.value; fill(); } })),
+      found,
+      f.with.length ? h('div', { class: 'picked' }, h('p', { class: 'hint' }, 'Recettes qui contiennent' + (f.with.length > 1 ? ' à la fois :' : ' :')),
+        h('div', { class: 'chips' }, f.with.map(function (id) {
+          return button([ing(id).name, h('span', { 'aria-hidden': 'true' }, ' ×')], 'achip picked-chip', function () { toggle(f.with, id); changed(); }, { 'aria-label': 'Ne plus filtrer sur ' + ing(id).name, 'data-key': 'drop' + id });
+        }))) : null,
+      segmented('Filtre', [{ value: false, label: 'Toutes' }, { value: true, label: 'De saison en ' + MONTHS[MONTH] }], f.season, function (v) { f.season = v; changed(); }),
+      h('div', { class: 'checks' }, box('noMilk', 'Sans lait'), box('noNuts', 'Sans oléagineux')),
+      f.noMilk || f.noNuts ? h('p', { class: 'hint' }, [
+        f.noMilk ? '« Sans lait » écarte les produits laitiers et le chocolat noir (traces possibles), mais garde les laits végétaux.' : '',
+        f.noNuts ? '« Sans oléagineux » écarte les fruits à coque, la cacahuète, la chia et les laits d’amande et de noisette, mais garde la noix de coco.' : '',
+        'Ces cases ne remplacent pas vos réglages d’allergies.'].filter(Boolean).join(' ')) : null,
+      h('p', { class: 'hint', role: 'status' }, filtered.length + (filtered.length > 1 ? ' recettes' : ' recette') +
         (hidden ? '. ' + hidden + (hidden > 1 ? ' masquées' : ' masquée') + ' selon vos allergies, vos goûts ou vos ingrédients retirés.' : '.')),
-      shown.length ? h('ul', { class: 'cards' }, shown.map(function (r) {
-        var built = Engine.build(r, profile.size, profile, r.name);
-        var names = Engine.idsOf(r).map(function (id) { return ing(id).name.replace(/ \(.*\)/, '').toLowerCase(); });
-        var liked = Engine.idsOf(r).some(function (id) { return has(profile.likes, id); });
-        return h('li', {}, button([glass(built, 'glass-mini'),
-          h('span', {}, h('strong', {}, r.name), h('span', {}, names.join(', ')),
-            liked ? h('small', { class: 'c-orange' }, 'avec ce que vous aimez') : (Engine.recipeInSeason(r, MONTH, profile, SEASONS) ? h('small', { class: 'c-green' }, 'de saison') : null))],
-          'card', function () { ui.recipe = built; go('recette'); }));
-      })) : h('div', { class: 'empty' }, h('p', {}, 'Aucune recette de la liste ne convient ici. Essayez de composer votre mélange.'),
-        button('Composer mon mélange', 'btn btn-green', function () { go('composer'); })));
+      narrowed ? button('Effacer les filtres', 'link-btn', function () { f.with = []; f.query = ''; f.season = false; f.noMilk = false; f.noNuts = false; changed(); }, { 'data-key': 'reset' }) : null,
+      h('p', { class: 'hint legend' }, bolts(1), ' Les éclairs indiquent l’énergie d’un verre de 33 cl, de 1 (peu calorique) à 4 (très calorique).'),
+      filtered.length ? h('ul', { class: 'cards' }, filtered.slice(0, f.shown).map(ideaCard)) :
+        h('div', { class: 'empty' }, h('p', {}, 'Aucune recette ne réunit ces critères. Retirez un filtre ou composez votre mélange.'),
+          button('Composer mon mélange', 'btn btn-green', function () { go('composer'); })),
+      filtered.length > f.shown ? button('Afficher plus de recettes (' + (filtered.length - f.shown) + ' restantes)', 'btn btn-cyan btn-wide', function () { f.shown += PAGE; render(); }, { 'data-key': 'more' }) : null);
   }
 
   /* ---------- surprise ---------- */
@@ -445,9 +528,11 @@
     save(); render();
   }
 
+  function ingMonth() { return ui.ing.month === null ? MONTH : ui.ing.month; }
+
   function ingredientRow(i) {
     var st = Engine.status(i, profile);
-    var month = ui.ing.month;
+    var month = ingMonth();
     var season = Engine.inSeason(i, month, SEASONS);
     var info = [];
     if (season === true) info.push(SEASONS[i.season].length === 12 ? 'toute l’année' : 'de saison en ' + MONTHS[month]);
@@ -480,6 +565,7 @@
   }
 
   function openForm(existing) {
+    delete ui.open.rareform;
     ui.form = existing ? { id: existing.id, name: existing.name, cat: existing.cat, color: existing.color,
       contains: existing.contains.slice(), madeOf: existing.madeOf.slice(), per: existing.per || 5, unit: existing.unit || 'g', kcal: typeof existing.kcal === 'number' ? String(existing.kcal).replace('.', ',') : '', sure: false, error: null }
       : { id: null, name: '', cat: ui.ing.cat, color: SWATCHES[0], contains: [], madeOf: [], per: 5, unit: 'g', kcal: '', sure: false, error: null };
@@ -498,8 +584,11 @@
     var f = ui.form;
     if (!f) { openForm(null); return h('div'); }
     function dirty() { f.sure = false; render(); }
-    var keys = ALLERGENS.filter(function (a) { return a.key !== 'latex'; }).map(function (a) { return { value: a.key, label: a.label }; });
+    var toCheck = function (a) { return { value: a.key, label: a.label }; };
+    var keys = ALLERGENS.filter(function (a) { return a.key !== 'latex' && !a.rare; }).map(toCheck);
     keys.splice(8, 0, { value: Engine.UNSPECIFIED_NUT, label: 'Fruit à coque non précisé' });
+    var rareKeys = ALLERGENS.filter(function (a) { return a.rare; }).map(toCheck);
+    var rareChecked = rareKeys.filter(function (o) { return has(f.contains, o.value); }).length;
     var parts = INGREDIENTS.slice().sort(byName).map(function (i) { return { value: i.id, label: i.name }; });
     return h('form', { class: 'form', onsubmit: function (e) {
         e.preventDefault();
@@ -544,6 +633,7 @@
       h('fieldset', { class: 'allergen-box' }, h('legend', {}, 'Contient ou peut contenir'),
         h('p', { class: 'hint' }, 'Lisez l’étiquette, y compris la mention « traces ». Ne cochez rien seulement si aucun de ces allergènes n’y figure.'),
         checkList(keys, f.contains, dirty),
+        detailsOpenIf(rareChecked, 'rareform', 'Autres allergènes', checkList(rareKeys, f.contains, dirty)),
         details('madeof', 'Composé aussi d’un ingrédient de la liste', checkList(parts, f.madeOf, dirty))),
       h('label', { class: 'check confirm' },
         h('input', { type: 'checkbox', id: 'sure', checked: f.sure, 'data-key': 'fsure', onchange: function (e) { f.sure = e.target.checked; if (f.error) { f.error = null; render(); } } }),
@@ -558,7 +648,7 @@
     var visible = all.filter(function (i) { return !has(profile.hidden, i.id) && i.cat === ui.ing.cat && (!ui.ing.citrus || ui.ing.cat !== 'fruit' || i.citrus); }).sort(byName);
     var body;
     if (ui.ing.sort === 'season' && (ui.ing.cat === 'fruit' || ui.ing.cat === 'legume' || ui.ing.cat === 'oleagineux')) {
-      var m = ui.ing.month;
+      var m = ingMonth();
       var groups = [
         ['De saison en ' + MONTHS[m], function (i) { var v = Engine.inSeason(i, m, SEASONS); return v === true && SEASONS[i.season].length < 12; }],
         ['Disponibles toute l’année', function (i) { return Engine.inSeason(i, m, SEASONS) === true && SEASONS[i.season].length === 12; }],
@@ -582,8 +672,8 @@
         return button(c.label, 'cat', function () { ui.ing.cat = c.key; render(); }, { 'aria-pressed': String(ui.ing.cat === c.key), 'data-key': 'cat' + c.key });
       })),
       segmented('Tri', [{ value: 'alpha', label: 'De A à Z' }, { value: 'season', label: 'Par saison' }], ui.ing.sort, function (v) { ui.ing.sort = v; render(); }),
-      ui.ing.sort === 'season' ? h('label', { class: 'field inline' }, 'Mois', h('select', { 'data-key': 'month', onchange: function (e) { ui.ing.month = Number(e.target.value); render(); } },
-        MONTHS.map(function (n, i) { return h('option', { value: i, selected: i === ui.ing.month }, n); }))) : null,
+      ui.ing.sort === 'season' ? h('label', { class: 'field inline' }, 'Mois', h('select', { 'data-key': 'month', onchange: function (e) { var v = Number(e.target.value); ui.ing.month = v === MONTH ? null : v; render(); } },
+        MONTHS.map(function (n, i) { return h('option', { value: i, selected: i === ingMonth() }, n); }))) : null,
       ui.ing.cat === 'fruit' ? h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: ui.ing.citrus, 'data-key': 'citrus', onchange: function (e) { ui.ing.citrus = e.target.checked; render(); } }), h('span', {}, 'Agrumes seulement')) : null,
       body,
       removed.length ? details('removed', 'Ingrédients retirés (' + removed.length + ')', h('ul', { class: 'removed' }, removed.map(function (i) {
@@ -604,7 +694,9 @@
         }, { 'aria-pressed': String(on), 'data-key': 'a' + a.key });
     }
     var nuts = ALLERGENS.filter(function (a) { return a.group === 'coque'; });
-    var others = ALLERGENS.filter(function (a) { return a.group === 'autre'; });
+    var others = ALLERGENS.filter(function (a) { return a.group === 'autre' && !a.rare; });
+    var rare = ALLERGENS.filter(function (a) { return a.rare; });
+    var rareOn = rare.filter(function (a) { return has(target.allergens, a.key); }).length;
     var allNuts = nuts.every(function (a) { return has(target.allergens, a.key); });
     var parts = Engine.everyIngredient(target.custom ? target : profile).slice().sort(byName);
     return h('div', {},
@@ -616,8 +708,11 @@
           if (persist) save(); render();
         }, { 'aria-pressed': String(allNuts), 'data-key': 'allnuts' }),
         nuts.map(chipFor)),
-      h('h3', {}, 'Autres allergènes'),
+      h('h3', {}, 'Lait, arachide, soja, gluten…'),
       h('div', { class: 'chips' }, others.map(chipFor)),
+      detailsOpenIf(rareOn, 'rare', 'Autres allergènes', h('div', {},
+        h('p', { class: 'hint' }, 'Absents des ingrédients fournis. À cocher pour qu’ils soient écartés des ingrédients que vous ajoutez.'),
+        h('div', { class: 'chips' }, rare.map(chipFor)))),
       details('precise', 'Un fruit, un légume ou un autre ingrédient précis' + (target.items.length ? ' (' + target.items.length + ' coché' + (target.items.length > 1 ? 's' : '') + ')' : ''),
         h('div', { class: 'checks' }, parts.map(function (i) {
           return h('label', { class: 'check' },
@@ -649,7 +744,7 @@
         button('Je n’ai aucune allergie connue', 'choice', function () { o.choice = 'no'; render(); }, { 'aria-pressed': String(o.choice === 'no'), 'data-key': 'no' })),
       o.choice === 'yes' ? allergenPicker(o.draft, false) : null,
       o.choice ? h('div', { class: 'safety' },
-        h('p', {}, 'Version bêta. L’application ne remplace ni un avis médical ni la lecture des étiquettes. Une trace peut suffire à provoquer une réaction grave.'),
+        h('p', {}, 'L’application ne remplace ni un avis médical ni la lecture des étiquettes. Une trace peut suffire à provoquer une réaction grave.'),
         button(o.choice === 'no' ? 'Confirmer : aucune allergie' : (count ? 'Enregistrer mes allergies' : 'Cochez au moins une allergie'),
           'btn btn-green btn-wide', finish, { disabled: o.choice === 'yes' && !count })) : null);
   }
@@ -702,6 +797,8 @@
           h('li', {}, 'Calories : Anses. 2025. Table de composition nutritionnelle des aliments Ciqual 2025. ', link('https://doi.org/10.57745/RDMHWY', 'https://doi.org/10.57745/RDMHWY'), '.'),
           h('li', {}, 'Le total est indicatif, arrondi à la dizaine et calculé sur les quantités affichées (1 ml compté pour 1 g). Les pincées, feuilles et gouttes ne sont pas comptées. La valeur réelle varie selon la maturité des fruits et les marques.'),
           h('li', {}, 'Valeurs retenues : lait de vache demi-écrémé, fromage blanc à 2-3 % de matière grasse, boisson à la noix de coco (et non le lait de coco de cuisine), chocolat noir à 70 % de cacao, noix de cajou et pistaches grillées sans sel. Lait de noisette, absent de la table Ciqual : moyenne indicative de 50 kcal pour 100 ml (les étiquettes varient selon les marques, d’environ 29 à 69 kcal).'),
+          h('li', {}, 'Catégories d’énergie, pour un verre de 33 cl : jusqu’à 120 kcal peu calorique, jusqu’à 300 moyennement calorique, jusqu’à 500 calorique, au-delà très calorique (sur la valeur arrondie à la dizaine). Ce sont des repères propres à cette application.'),
+          h('li', {}, 'Recettes : noms et dosages propres à mySMOOZIZ, recettes non goûtées. Les associations de fruits et légumes ont été relevées le 25/11/2026 sur des recettes publiées, notamment ', link('https://www.750g.com/recettes-boissons/smoothies/fruits/', '750g'), ', ', link('https://www.demotivateur.fr/food/recettes/categorie/smoothie', 'Demotivateur'), ' et ', link('https://www.vorwerk.com/fr/fr/c/vorwerk/astuces-recettes/blog/thermomix/recettes-quotidien/recette-de-smoothie', 'Vorwerk'), '. La liste complète est dans le fichier SOURCES.md.'),
           h('li', {}, 'Saisons : ADEME, ', link('https://github.com/incubateur-ademe/impactco2', 'projet Impact CO2'), ' (version de novembre 2026).'),
           h('li', {}, 'Allergènes : ', link('https://www.efsa.europa.eu/luFR/safe2eat/food-allergens', 'EFSA, les 14 allergènes de l’UE'), '.'),
           h('li', {}, 'Fruits à coque : ', link('https://www.larevuedupraticien.fr/article/allergies-aux-fruits-coque', 'La Revue du praticien'), '.'),
@@ -731,6 +828,7 @@
     var app = document.getElementById('app');
     var focus = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-key');
     var y = window.scrollY;
+    MONTH = new Date().getMonth();
     var r = route();
     if (!VIEWS[r]) r = 'accueil';
     var content, chrome = profile.confirmed;
@@ -753,7 +851,17 @@
     }
   }
 
-  window.addEventListener('hashchange', function () { render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', function () {
+    render();
+    /* Retour d'une recette : on revient à l'endroit de la liste. */
+    var back = route() === 'idees' ? ui.ideas.scroll : null;
+    if (route() !== 'recette') ui.ideas.scroll = null;
+    window.scrollTo(0, back || 0);
+  });
+  /* Appli restée ouverte d'un mois sur l'autre : mise à jour au retour à l'écran. */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && new Date().getMonth() !== MONTH) render();
+  });
   window.addEventListener('storage', function (e) {
     if (e.key === KEY || e.key === null) { profile = load(); render(); }
   });
