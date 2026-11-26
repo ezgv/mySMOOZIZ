@@ -169,8 +169,11 @@ var Engine = (function (D) {
     return !!ing && status(ing, profile, ex).ok;
   }
 
+  /* « Sans base » : ce n’est pas un ingrédient, seulement l’absence de lait ou de liquide. */
+  var NO_BASE = 'sans';
+
   function idsOf(sel) {
-    return sel.produce.concat(sel.nuts, sel.base ? [sel.base] : [], sel.options);
+    return sel.produce.concat(sel.nuts, sel.base && sel.base !== NO_BASE ? [sel.base] : [], sel.options);
   }
 
   function allowed(sel, profile, ex) {
@@ -211,6 +214,7 @@ var Engine = (function (D) {
   function build(sel, size, profile, name) {
     if (!profile.confirmed) throw new Error('profil non confirmé');
     if (!sel.base || !sel.produce.length) throw new Error('sélection incomplète');
+    if (sel.base === NO_BASE && !canSkipBase(sel.produce)) throw new Error('base obligatoire avec un seul ingrédient');
     var ex = exclusions(profile);
     if (!allowed(sel, profile, ex)) throw new Error('ingrédient exclu');
     var get = function (id) { return find(id, profile); };
@@ -229,17 +233,24 @@ var Engine = (function (D) {
 
     var shares = shareProduce(produce, 180);
     var fruitTotal = produce.reduce(function (t, p) { return t + shares[p.id]; }, 0);
-    var shrink = fruitTotal + extra > 230 ? (230 - extra) / fruitTotal : 1;
-    var produceItems = produce.map(function (p) { return { id: p.id, unit: 'g', base: shares[p.id] * shrink }; });
-    var solid = fruitTotal * shrink + extra;
-    var liquid = Math.max(100, 330 - solid);
-
-    var base = get(sel.base);
-    var baseItems;
-    if (base.thick && usable('eau', profile, ex)) {
-      baseItems = [{ id: base.id, unit: 'g', base: liquid * 2 / 3 }, { id: 'eau', unit: 'ml', base: liquid / 3 }];
+    var baseItems = [], produceItems;
+    if (sel.base === NO_BASE) {
+      /* Sans base, les fruits et légumes remplissent le verre : mêmes proportions et mêmes
+         plafonds de goût, agrandis du même facteur. S’ils sont tous plafonnés, le volume reste
+         inférieur au verre, et la recette le signale. */
+      var k = (330 - extra) / 180;
+      var wide = shareProduce(produce.map(function (p) { return { id: p.id, w: p.w, cap: (p.cap || 100) * k }; }), 330 - extra);
+      produceItems = produce.map(function (p) { return { id: p.id, unit: 'g', base: wide[p.id] }; });
     } else {
-      baseItems = [{ id: base.id, unit: base.thick ? 'g' : 'ml', base: liquid }];
+      var shrink = fruitTotal + extra > 230 ? (230 - extra) / fruitTotal : 1;
+      produceItems = produce.map(function (p) { return { id: p.id, unit: 'g', base: shares[p.id] * shrink }; });
+      var liquid = Math.max(100, 330 - fruitTotal * shrink - extra);
+      var base = get(sel.base);
+      if (base.thick && usable('eau', profile, ex)) {
+        baseItems = [{ id: base.id, unit: 'g', base: liquid * 2 / 3 }, { id: 'eau', unit: 'ml', base: liquid / 3 }];
+      } else {
+        baseItems = [{ id: base.id, unit: base.thick ? 'g' : 'ml', base: liquid }];
+      }
     }
 
     var items = baseItems.concat(produceItems, nutItems, optItems).map(function (i) {
@@ -309,8 +320,29 @@ var Engine = (function (D) {
     return sorted.filter(function (id) { return !curdles(id); }).concat(sorted.filter(curdles));
   }
 
+  /* Ingrédients assez juteux pour se mixer sans liquide (liste validée le 26/11/2026,
+     jugement culinaire non testé au blender). Les citrons, utilisés en filet, n’en font pas partie. */
+  var JUICY = ['pasteque', 'melon', 'orange', 'mandarine', 'pamplemousse', 'ananas', 'peche', 'nectarine', 'raisin', 'concombre', 'tomate'];
+
+  function isJuicy(produce) { return produce.some(function (id) { return has(JUICY, id); }); }
+
+  /* Un seul fruit ou légume : la base est obligatoire. */
+  function canSkipBase(produce) { return produce.length >= 2; }
+
+  /* Choix réellement appliqué. choice vaut null tant que la personne n’a rien touché ;
+     « auto » (l’appli choisit), « sans » ou une base choisie à la main sont conservés. */
+  function effectiveBase(choice, produce, profile) {
+    var skip = canSkipBase(produce);
+    if (choice === NO_BASE && skip) return NO_BASE;
+    if (choice && choice !== 'auto' && choice !== NO_BASE) return choice;
+    if (!choice && skip && isJuicy(produce)) return NO_BASE;
+    if (skip && !baseChoices(produce, profile).length) return NO_BASE;
+    return 'auto';
+  }
+
   function compose(sel, size, profile) {
-    var base = sel.base && sel.base !== 'auto' ? sel.base : baseChoices(sel.produce, profile)[0];
+    var base = effectiveBase(sel.base, sel.produce, profile);
+    if (base === 'auto') base = baseChoices(sel.produce, profile)[0];
     if (!base) return null;
     var full = { produce: sel.produce, nuts: sel.nuts, base: base, options: sel.options };
     return build(full, size, profile, 'Mon mélange');
@@ -351,7 +383,7 @@ var Engine = (function (D) {
     });
   }
 
-  /* f.energy : liste de groupes cochés (1, 2, ou 3 qui réunit les niveaux 3 et 4). */
+  /* f.energy : liste des niveaux cochés (1 à 4). */
   function filterRecipes(list, f, profile, month, seasons, table) {
     return list.filter(function (rc) {
       var ids = idsOf(rc);
@@ -362,7 +394,7 @@ var Engine = (function (D) {
       if (f.season && !recipeInSeason(rc, month, profile, seasons)) return false;
       if (f.energy && f.energy.length) {
         var e = energy(rc, profile, table);
-        if (!e || !has(f.energy, Math.min(e.level, 3))) return false;
+        if (!e || !has(f.energy, e.level)) return false;
       }
       return true;
     });
@@ -371,9 +403,9 @@ var Engine = (function (D) {
   /* ---------- énergie : toujours pour un verre de 33 cl ---------- */
 
   var ENERGY = [
-    { level: 1, max: 120, label: 'Très peu calorique' },
-    { level: 2, max: 300, label: 'Moyennement calorique' },
-    { level: 3, max: 500, label: 'Calorique' },
+    { level: 1, max: 100, label: 'Peu calorique' },
+    { level: 2, max: 200, label: 'Moyennement calorique' },
+    { level: 3, max: 300, label: 'Calorique' },
     { level: 4, max: Infinity, label: 'Très calorique' }
   ];
 
@@ -487,7 +519,7 @@ var Engine = (function (D) {
     everyIngredient: everyIngredient, exclusions: exclusions, signature: signature,
     allergyReason: allergyReason, status: status, usable: usable, idsOf: idsOf, allowed: allowed,
     assertSafe: assertSafe, build: build, compose: compose, formatQty: formatQty, calories: calories, parseKcal: parseKcal,
-    baseChoices: baseChoices, isAcid: isAcid, inSeason: inSeason, recipeInSeason: recipeInSeason,
+    baseChoices: baseChoices, effectiveBase: effectiveBase, canSkipBase: canSkipBase, isJuicy: isJuicy, JUICY: JUICY, NO_BASE: NO_BASE, isAcid: isAcid, inSeason: inSeason, recipeInSeason: recipeInSeason,
     ideas: ideas, filterRecipes: filterRecipes, energy: energy, energyOf: energyOf, ENERGY: ENERGY, surprise: surprise, normalize: normalize
   };
 })(typeof module !== 'undefined' ? require('./data.js') : {

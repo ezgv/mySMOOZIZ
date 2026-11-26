@@ -51,7 +51,7 @@ small.c-green { color: var(--green); }
 .logo span:nth-child(even) { transform: rotate(3deg); }
 .logo span:nth-child(odd):not(.logo-my) { transform: rotate(-3deg); }
 
-.banner { display: block; padding: .6rem .9rem; border-radius: .8rem; font-size: .9rem; text-decoration: none; overflow-wrap: anywhere; }
+.banner { display: block; padding: .25rem .7rem; border-radius: .6rem; font-size: .8rem; line-height: 1.35; text-decoration: none; overflow-wrap: anywhere; }
 .banner-allergy { background: var(--red); color: #fff; }
 .banner-none { color: var(--muted); border: 1px dashed var(--line); }
 .error { background: var(--red); color: #fff; padding: .7rem .9rem; border-radius: .8rem; }
@@ -123,7 +123,6 @@ small.c-green { color: var(--green); }
 .achip.linked { border-color: var(--red); }
 .achip-all { border-color: var(--line); }
 .sticky { position: sticky; bottom: calc(5.2rem + env(safe-area-inset-bottom)); z-index: 2; }
-.sticky .btn { box-shadow: 0 0 0 .5rem var(--bg); }
 
 /* recette et verre */
 .kcal { text-align: center; margin: .8rem 0 0; font-size: 1rem; }
@@ -163,24 +162,32 @@ small.c-green { color: var(--green); }
 .energy-line { display: flex; justify-content: center; margin: 0; color: #ffd62e; font-weight: 700; text-align: center; }
 .energy-line .energy { justify-content: center; }
 .energy-line small { flex-basis: 100%; font-weight: 400; }
-.bolts { display: inline-flex; flex: none; }
-.bolt { width: 1rem; height: 1rem; fill: #ffd62e; }
+.pines { display: inline-flex; flex: none; gap: 1px; }
+.pine { width: 1.1rem; height: 1.1rem; }
+.pine-leaves { fill: var(--green); }
+.pine-body { fill: #ffc21f; }
+.pine-skin { fill: none; stroke: #9a5a00; stroke-width: 1.1; stroke-linecap: round; }
 .filters { border: 2px solid var(--line); border-radius: 1.2rem; padding: .35rem .75rem .75rem; margin: .8rem 0; }
 .filter-checks { display: grid; grid-template-columns: auto auto; justify-content: space-between; column-gap: .5rem; }
 .filter-checks .check { font-size: min(.95rem, 3.8vw); gap: .4rem; white-space: nowrap; }
 .legend { margin: .5rem 0; font-size: .95rem; line-height: 1.5; }
 .legend > span { display: block; }
 .legend-scale { font-size: min(.86rem, 3.5vw); white-space: nowrap; color: var(--muted); }
-.legend .bolts { vertical-align: -.15rem; }
-.legend .bolt { width: .85rem; height: .85rem; }
-.efilter { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.ebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 2.6rem; padding: .2rem; background: var(--surface); border: 2px solid transparent; border-radius: .8rem; line-height: 1.1; font-size: .86rem; }
-.ebtn .bolt { width: .75rem; height: .75rem; }
+.legend .pines { vertical-align: -.2rem; }
+.legend .pine { width: 1.05rem; height: 1.05rem; }
+.efilter { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .3rem; }
+.ebtn { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: .15rem; min-height: 3.5rem; padding: .35rem .1rem .25rem; background: var(--surface); border: 2px solid transparent; border-radius: .8rem; line-height: 1.1; font-size: min(.84rem, 3.4vw); text-align: center; }
+.ebtn .pines { gap: 0; }
+.ebtn .pine { width: min(1rem, 4vw); height: min(1rem, 4vw); }
 .ebtn[aria-pressed=true] { border-color: #ffd62e; background: #4a421f; }
 .counter { margin: 1rem 0 0; }
-.compose-bar { display: flex; gap: .6rem; align-items: center; background: var(--bg); padding: .2rem 0; box-shadow: 0 -.4rem 0 var(--bg), 0 1.5rem 0 var(--bg), 0 3rem 0 var(--bg); }
-.compose-bar .btn-wide { flex: 1; }
-.btn-clear { flex: 0 1 8.5rem; min-height: 3rem; padding: .35rem .6rem; background: var(--bg); border: 2px solid var(--text); border-radius: 99px; line-height: 1.15; font-size: .95rem; }
+/* Bas de « Composer » : boutons seuls, sans bandeau, visibles dès qu’un choix est fait. */
+.compose-bar { display: flex; gap: .6rem; justify-content: center; align-items: center; margin-top: 1rem; pointer-events: none; }
+.compose-bar > * { pointer-events: auto; }
+.compose-bar .btn-mix { margin: 0; min-height: 2.75rem; padding: .35rem min(1.2rem, 3.6vw); white-space: nowrap; font-size: min(1rem, 4vw); box-shadow: 0 .2rem .9rem #000a; }
+.btn-clear { min-height: 2.5rem; padding: .25rem .8rem; background: var(--bg); border: 1px solid var(--muted); border-radius: 99px; line-height: 1.15; font-size: min(.88rem, 3.6vw); white-space: nowrap; box-shadow: 0 .2rem .9rem #000a; }
+.no-base { margin: 0; padding: .4rem .8rem; background: var(--red); color: #fff; border-radius: 99px; font-size: .9rem; }
+.filters .field { margin: .4rem 0 .5rem; }
 .suggestions:not(:empty) { margin-bottom: .6rem; }
 .picked-chip { border-color: var(--green); background: #2c4a21; }
 

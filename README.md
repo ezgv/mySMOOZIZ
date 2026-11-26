@@ -1,4 +1,4 @@
-# mySMOOZIZ 1.2
+# mySMOOZIZ 1.3
 
 Application de recettes de smoothies qui tient compte des goûts et des allergies.
 Les réglages de chaque personne restent dans son navigateur.
@@ -7,7 +7,7 @@ Les réglages de chaque personne restent dans son navigateur.
 
 À faire de préférence depuis un ordinateur.
 
-1. Décompresser `mySMOOZIZ-1.2.zip`.
+1. Décompresser `mySMOOZIZ-1.3.zip`.
 2. Sur github.com, créer un dépôt public nommé `mysmooziz`.
 3. Dans le dépôt : « Add file », puis « Upload files ». Déposer tous les fichiers du dossier (pas le dossier lui-même, pas le zip). Valider avec « Commit changes ».
 4. Ouvrir « Settings », puis « Pages ». Dans « Build and deployment », choisir « Deploy from a branch », branche `main`, dossier `/ (root)`, puis « Save ».
@@ -41,4 +41,6 @@ Déposer les fichiers modifiés par-dessus les anciens. Depuis la version 1.2, `
 L'application ne remplace ni un avis médical ni la lecture des étiquettes.
 Les recettes n'ont pas été goûtées.
 Les proportions sont des repères culinaires, sans validation nutritionnelle.
+Les mélanges sans base n'ont pas été testés au blender.
+Les catégories d'énergie sont des seuils de comparaison, pas des catégories nutritionnelles officielles.
 Les calories sont une indication : elles varient selon la maturité des fruits et les marques.
